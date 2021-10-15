@@ -64,6 +64,9 @@ def seqdict_to_strdict(dict1):
     return strdict
 
 utr_dict = seqdict_to_strdict(utr_dict)
+#print(len(utr_dict))
+#print(type(list(utr_dict.keys())[0]))
+#format of key: NFKB2|ENST00000189444; type: str
 
 #return dictionary with keys being in the format:
 #Gene name | transcript id | 270 nt sequence number for this id | sequence
@@ -89,37 +92,35 @@ def dict_with_270nt_seq(dict1):
     return dict_270nt_seq
 
 dict_270_nt = dict_with_270nt_seq(utr_dict)
-
+print("Number of total 270 nt transcripts: " + str(len(dict_270_nt))) #32561 transcripts/stuff currently in the dictionary
 
 #given a dictionary that can have keys with duplicate values, return a dictionary such that there is only one key per value, and other keys with duplicate values
 #are removed. Write to a file called filename the keys that are removed from the dictionary. 
 def remove_duplicates(dict1, filename):
     dict_270_nt_no_dupl = {}
-    count = 0
+    count_deleted_duplicates = 0
+    count_original = 0
     with open(filename, "w") as filevar:
         filevar.write("Deleted Sequences\nGene Name | Transcript ID | Transcript #")                    
         non_duplicate_values_list = []
         keys_not_deleted = []
-        for gene,utr in dict1.items():
+        for header,utr in dict1.items():
             if utr not in non_duplicate_values_list:
                 non_duplicate_values_list.append(utr)
-                keys_not_deleted.append(gene)
-        for gene in dict1:
-            if gene not in keys_not_deleted:
-                filevar.write("\n" + gene)
-                count = count + 1
-            if gene in keys_not_deleted:
-                dict_270_nt_no_dupl[gene] = dict1[gene]
-    print(count)
-    print("len no dupl" + str(len(dict_270_nt_no_dupl)))
-    
-
+                keys_not_deleted.append(header)
+        for header in dict1:
+            if header not in keys_not_deleted:
+                filevar.write("\n" + header)
+                count_deleted_duplicates = count_deleted_duplicates + 1
+            if header in keys_not_deleted:
+                dict_270_nt_no_dupl[header] = dict1[header]
+                count_original = count_original + 1
+        print("Number of duplicate sequences: " + str(count_deleted_duplicates))
+        print("Number of non-duplicates: " + str(count_original))
+    return dict_270_nt_no_dupl
     
 #remove keys from original dictionary
 no_dupl_dict = remove_duplicates(dict_270_nt, "deleted_transcripts.txt")
-
-
-
 
 #format:
 #Gene name | transcript id | 270 nt sequence number for this id | sequence
@@ -130,8 +131,6 @@ def write_270_nt(dict1):
         for gene in dict1:
             filevar.write(gene + dict1[gene])
             #now handle this just like a string, and write to a file just like a string.
-
-
 write_270_nt(no_dupl_dict)
 
 
@@ -156,4 +155,4 @@ write_270_nt(no_dupl_dict)
 #test - for COMT [0:270] should be TGTGGACACACTGGACATGGTCTTCCTCGACCACTGGAAGGACCGGTACCTGCCGGACACGCTTCTCTTGGAGGAATGTGGCCTGCTGCGGAAGGGGACAGTGCTACTGGCTGACAACGTGATCTGCCCAGGTGCGCCAGACTTCCTAGCACACGTGCGCGGGAGCAGCTGCTTTGAGTGCACACACTACCAATCGTTCCTGGAATACAGGGAGGTGGTGGACGGCCTGGAGAAGGCCATCTACAAGGGCCCAGGCAGCGAAGCAGGGCC
     #       COMT [220:490] should be  GACGGCCTGGAGAAGGCCATCTACAAGGGCCCAGGCAGCGAAGCAGGGCCCTGACTGCCCCCCCGGCCCCCCTCTCGGGCTCTCTCACCCAGCCTGGTACTGAAGGTGCCAGACGTGCTCCTGCTGACCTTCTGCGGCTCCGGGCTGTGTCCTAAATGCAAAGCACACCTCGGCCGAGGCCTGCGCCCTGACATGCTAACCTCTCTGAACTGCAACACTGGATTGTTCTTTTTTAAGACTCAATCATGACTTCTTTACTAACACTGGCTA
     #       COMT [440:710] should be  GATTGTTCTTTTTTAAGACTCAATCATGACTTCTTTACTAACACTGGCTAGCTATATTATCTTATATACTAATATCATGTTTTAAAAATATAAAATAGAAATTAAGAATCTAAA
-    
+
