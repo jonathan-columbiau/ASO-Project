@@ -24,33 +24,6 @@ def filter_unavailable(dict_seq):
 
 utr_dict = filter_unavailable(utr_dict)
 
-'''
-#can make histogram function later - given a dictionary where values are strings, plot a histogram of all the string lengths.
-
-#plot histogram - summary statistics for unfiltered UTR regions
-#make a dictionary the same as utr_dict called utr_dict_hist except the values of the keys are the lengths of the 3' UTR regions
-utr_dict_hist = {}
-for gene, utr in utr_dict.items():
-    num_seq = len(str(utr_dict[gene].seq))
-    utr_dict_hist[gene] = num_seq
-
-#get list of values from the histogram dictionary
-values = list(utr_dict_hist.values())
-
-#compute min and max of 3' UTR lengths 
-min_utr_len = min(values)
-max_utr_len = max(values)
-#algorithm for binning: https://stackoverflow.com/questions/6855710/how-to-have-logarithmic-bins-in-a-python-histogram ; I chose arbitrary # of bins at 30
-#numpy linspace package returns evenly spaced numbers over a specified interval 
-plt.hist(values, bins = 10 ** np.linspace(np.log10(min_utr_len), np.log10(max_utr_len), 30), histtype = "bar")
-plt.xscale('log')
-plt.xlabel("Sequence Length")
-plt.ylabel("Frequency")
-plt.show()
-
-'''
-
-
 #check if there are duplicates in 270ntsequences.txt by first adding all the 270 nt sequences to a dictionary, before writing to 270ntsequences.txt
 
 #make a function that converts a dictionary with sequences in Biopython's SeqRecord format to string format. Input: dictionary w values in SeqRecord for,at.
@@ -64,13 +37,33 @@ def seqdict_to_strdict(dict1):
     return strdict
 
 utr_dict = seqdict_to_strdict(utr_dict)
+
 #print(len(utr_dict))
 #print(type(list(utr_dict.keys())[0]))
 #format of key: NFKB2|ENST00000189444; type: str
+#plot_hist - plots summary statistics of sequence lengths of all transcripts (assuming dictionary values are sequences in string format). Second parameter is title of histogram
+
+def plot_hist(dict1, title):
+    dict_hist = {}
+    for transcript, utr in dict1.items():
+        num_seq = len(utr)
+        dict_hist[transcript] = num_seq
+    values = list(dict_hist.values())
+    min_utr_len = min(values)
+    max_utr_len = max(values)
+    #algorithm for binning: https://stackoverflow.com/questions/6855710/how-to-have-logarithmic-bins-in-a-python-histogram ; I chose arbitrary # of bins at 30
+    #numpy linspace package returns evenly spaced numbers over a specified interval 
+    plt.hist(values, bins = 10 ** np.linspace(np.log10(min_utr_len), np.log10(max_utr_len), 30), histtype = "bar")
+    plt.xscale('log')
+    plt.xlabel("Sequence Length")
+    plt.ylabel("Frequency")
+    plt.show()
+
+plot_hist(utr_dict)
 
 #return dictionary with keys being in the format:
 #Gene name | transcript id | 270 nt sequence number for this id | sequence
-#and being the sequence. Will use this to check for, and remove, duplicates in the next step; and after, write the sequences to a file.  
+#and being the sequence. Will use this to check for, and remove, duplicates in the next step; and after, write the sequences to a file.
 def dict_with_270nt_seq(dict1):
     dict_270nt_seq = {}
     for gene in dict1:
@@ -133,26 +126,4 @@ def write_270_nt(dict1):
             #now handle this just like a string, and write to a file just like a string.
 write_270_nt(no_dupl_dict)
 
-
-#check if there are duplicates - print length of set vs length of
-#No duplicates
-
-
-#can plot number of fragments do that
-#can check for genes with multiple transcript - look at if they have overlapping sequences. IF two isoforms have the same
-#manually check some of these big genes to see if you have same UTR sequence
-#just look at like 1 or 2 genes
-
-#algorithm to write sequences to a file
-#make a dictionary where keys are FASTA headers and values are SeqRecord objects that you could get the sequence values
-#Ex: ["AAACCACAC...", "AATTGTGTTGC...", ...]
-#make a for loop that just iterates over the list and writes the name of the gene
-    #+ the position in the list + sequence at that position + new line character
-    #ex: write("actin1 - AAA...\n")
-#1. get all the keys of the dictionary
-
-
-#test - for COMT [0:270] should be TGTGGACACACTGGACATGGTCTTCCTCGACCACTGGAAGGACCGGTACCTGCCGGACACGCTTCTCTTGGAGGAATGTGGCCTGCTGCGGAAGGGGACAGTGCTACTGGCTGACAACGTGATCTGCCCAGGTGCGCCAGACTTCCTAGCACACGTGCGCGGGAGCAGCTGCTTTGAGTGCACACACTACCAATCGTTCCTGGAATACAGGGAGGTGGTGGACGGCCTGGAGAAGGCCATCTACAAGGGCCCAGGCAGCGAAGCAGGGCC
-    #       COMT [220:490] should be  GACGGCCTGGAGAAGGCCATCTACAAGGGCCCAGGCAGCGAAGCAGGGCCCTGACTGCCCCCCCGGCCCCCCTCTCGGGCTCTCTCACCCAGCCTGGTACTGAAGGTGCCAGACGTGCTCCTGCTGACCTTCTGCGGCTCCGGGCTGTGTCCTAAATGCAAAGCACACCTCGGCCGAGGCCTGCGCCCTGACATGCTAACCTCTCTGAACTGCAACACTGGATTGTTCTTTTTTAAGACTCAATCATGACTTCTTTACTAACACTGGCTA
-    #       COMT [440:710] should be  GATTGTTCTTTTTTAAGACTCAATCATGACTTCTTTACTAACACTGGCTAGCTATATTATCTTATATACTAATATCATGTTTTAAAAATATAAAATAGAAATTAAGAATCTAAA
 
