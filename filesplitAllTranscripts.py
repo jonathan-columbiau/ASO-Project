@@ -15,7 +15,7 @@ def filter_unavailable(dict_seq):
     del_items = []
     for gene in dict_seq:
         seq = dict_seq[gene].seq
-        if  seq == "Sequenceunavailable":  #can add or len(seq) < 15 to filter for nucleotides 
+        if  seq == "Sequenceunavailable":  #can add or len(seq) < 15 to filter for nucleotides
             del_items.append(gene)
     filtered_dict = dict_seq
     for key in del_items:
@@ -23,8 +23,6 @@ def filter_unavailable(dict_seq):
     return filtered_dict
 
 utr_dict = filter_unavailable(utr_dict)
-
-#check if there are duplicates in 270ntsequences.txt by first adding all the 270 nt sequences to a dictionary, before writing to 270ntsequences.txt
 
 #make a function that converts a dictionary with sequences in Biopython's SeqRecord format to string format. Input: dictionary w values in SeqRecord for,at.
 #output: dictionary with String values.
@@ -43,7 +41,7 @@ utr_dict = seqdict_to_strdict(utr_dict)
 #format of key: NFKB2|ENST00000189444; type: str
 #plot_hist - plots summary statistics of sequence lengths of all transcripts (assuming dictionary values are sequences in string format). Second parameter is title of histogram
 
-def plot_hist(dict1, title):
+def plot_hist(dict1):
     dict_hist = {}
     for transcript, utr in dict1.items():
         num_seq = len(utr)
@@ -52,7 +50,7 @@ def plot_hist(dict1, title):
     min_utr_len = min(values)
     max_utr_len = max(values)
     #algorithm for binning: https://stackoverflow.com/questions/6855710/how-to-have-logarithmic-bins-in-a-python-histogram ; I chose arbitrary # of bins at 30
-    #numpy linspace package returns evenly spaced numbers over a specified interval 
+    #numpy linspace package returns evenly spaced numbers over a specified interval
     plt.hist(values, bins = 10 ** np.linspace(np.log10(min_utr_len), np.log10(max_utr_len), 30), histtype = "bar")
     plt.xscale('log')
     plt.xlabel("Sequence Length")
@@ -64,8 +62,10 @@ plot_hist(utr_dict)
 #return dictionary with keys being in the format:
 #Gene name | transcript id | 270 nt sequence number for this id | sequence
 #and being the sequence. Will use this to check for, and remove, duplicates in the next step; and after, write the sequences to a file.
+#Addition: add additional thing you return, a dictionary with the number of 270nt sequences needed for 3' region for each gene. Useful for summary statistics.
 def dict_with_270nt_seq(dict1):
     dict_270nt_seq = {}
+    dict_number_seq = {}
     for gene in dict1:
             gene_header_list = gene.split("|")
             gene_name = gene_header_list[0]
@@ -80,21 +80,37 @@ def dict_with_270nt_seq(dict1):
                 value = string_seq[count:count+270]
                 dict_270nt_seq[key] = value
                 count = count + 220
+                if count > len_seq:#summary statistics
+                    dict_number_seq[gene] = num_lines#summary statistics
                 #50-overlap is created by just increasing by 220 nt each iteration over the string, but writing 270 nt
                 num_lines = num_lines + 1
-    return dict_270nt_seq
+    return dict_270nt_seq, dict_number_seq
 
-dict_270_nt = dict_with_270nt_seq(utr_dict)
+
+
+dict_270_nt, dict_number_seqs = dict_with_270nt_seq(utr_dict)
+#write dict_number_seqs to a new file called seqs_per_transcript.txt. Can do analysis in Python, but easier in Excel. In Excel, just import this text file as CSV to open it.
+def write_seqs_per_transcript(dict1):
+    with open("seqs_per_transcript.txt", "w") as filevar:
+        filevar.write("Gene name | transcript id, # of sequences\n")
+        for gene in dict1:
+            filevar.write(gene + "," + str(dict1[gene]) + "\n")
+write_seqs_per_transcript(dict_number_seqs)
+
+
 print("Number of total 270 nt transcripts: " + str(len(dict_270_nt))) #32561 transcripts/stuff currently in the dictionary
 
+
+
+
 #given a dictionary that can have keys with duplicate values, return a dictionary such that there is only one key per value, and other keys with duplicate values
-#are removed. Write to a file called filename the keys that are removed from the dictionary. 
+#are removed. Write to a file called filename the keys that are removed from the dictionary.
 def remove_duplicates(dict1, filename):
     dict_270_nt_no_dupl = {}
     count_deleted_duplicates = 0
     count_original = 0
     with open(filename, "w") as filevar:
-        filevar.write("Deleted Sequences\nGene Name | Transcript ID | Transcript #")                    
+        filevar.write("Deleted Sequences\nGene Name | Transcript ID | Transcript #\n")
         non_duplicate_values_list = []
         keys_not_deleted = []
         for header,utr in dict1.items():
@@ -111,19 +127,43 @@ def remove_duplicates(dict1, filename):
         print("Number of duplicate sequences: " + str(count_deleted_duplicates))
         print("Number of non-duplicates: " + str(count_original))
     return dict_270_nt_no_dupl
-    
+
+
+
+
+#output sequences should be FASTA file. Then can take fragments for a single gene, copy and paste 10 entries, do Blast. Try before and after removing duplicates.
+
+#create a dictionary where sequence is key, use id as the value. Then can loop through dictionary where utr is new key and header is new value, and output that as the final.
+#if key already exists, just
+#a lot of transcripts have identical protein coding sequence so same stop codon
+
+#alternative way to remove duplicates after meeting with Xuebing: remove_duplicates2
+def remove_duplicates2(dict1, filename):
+    dict_270_nt_no_dupl = {}
+    with open(filename, "w") as filevar:
+        filevar.write("Deleted Sequences\nGene Name | Transcript ID | Fragment #\n")
+        for key in dict1:
+            if dict1[key] in dict_270_nt_no_dupl:
+                filevar.write(dict1[key] + "\n")
+            dict_270_nt_no_dupl[dict1[key]] = key
+    print("Number of non-duplicates remove_duplicates2: " + str(len(dict_270_nt_no_dupl)))
+    return dict_270_nt_no_dupl
+
+
+
 #remove keys from original dictionary
 no_dupl_dict = remove_duplicates(dict_270_nt, "deleted_transcripts.txt")
+no_dupl_dict2 = remove_duplicates2(dict_270_nt, "deleted_transcripts2.txt")
 
-#format:
-#Gene name | transcript id | 270 nt sequence number for this id | sequence
+
+#Fasta format:
+#header: >Gene name | transcript id | 270 nt fragment number for this id
+#sequence on next ine
 #There are gene paralogs with same gene id + gene name but different 3' UTR regions
 def write_270_nt(dict1):
-    with open("270ntsequences.txt", "w") as filevar:
-        filevar.write("Gene name | transcript id | 270 nt sequence number for this id | sequence\n") 
+    with open("270ntsequences.fasta", "w") as filevar:
+        #filevar.write("Gene name | transcript id | 270 nt sequence number for this id | sequence\n")
         for gene in dict1:
-            filevar.write(gene + dict1[gene])
+            filevar.write(">" + gene + "\n" + dict1[gene] + "\n")
             #now handle this just like a string, and write to a file just like a string.
 write_270_nt(no_dupl_dict)
-
-
