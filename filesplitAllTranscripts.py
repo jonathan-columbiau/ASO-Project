@@ -40,7 +40,7 @@ utr_dict = seqdict_to_strdict(utr_dict)
 #print(type(list(utr_dict.keys())[0]))
 #format of key: NFKB2|ENST00000189444; type: str
 #plot_hist - plots summary statistics of sequence lengths of all transcripts (assuming dictionary values are sequences in string format). Second parameter is title of histogram
-
+'''
 def plot_hist(dict1):
     dict_hist = {}
     for transcript, utr in dict1.items():
@@ -58,10 +58,10 @@ def plot_hist(dict1):
     plt.show()
 
 plot_hist(utr_dict)
-
+'''
 #return dictionary with keys being in the format:
-#Gene name | transcript id | 270 nt sequence number for this id | sequence
-#and being the sequence. Will use this to check for, and remove, duplicates in the next step; and after, write the sequences to a file.
+#Gene name | transcript id | 270 nt fragment number for this transcript id
+#and the value is the sequence. Will use this to check for, and remove, duplicates in the next step; and after, write the sequences to a file in FASTA format.
 #Addition: add additional thing you return, a dictionary with the number of 270nt sequences needed for 3' region for each gene. Useful for summary statistics.
 def dict_with_270nt_seq(dict1):
     dict_270nt_seq = {}
@@ -92,9 +92,9 @@ dict_270_nt, dict_number_seqs = dict_with_270nt_seq(utr_dict)
 #write dict_number_seqs to a new file called seqs_per_transcript.txt. Can do analysis in Python, but easier in Excel. In Excel, just import this text file as CSV to open it.
 def write_seqs_per_transcript(dict1):
     with open("seqs_per_transcript.txt", "w") as filevar:
-        filevar.write("Gene name | transcript id, # of sequences\n")
+        filevar.write("Gene name | transcript id | # of sequences\n")
         for gene in dict1:
-            filevar.write(gene + "," + str(dict1[gene]) + "\n")
+            filevar.write(gene + "|" + str(dict1[gene]) + "\n")
 write_seqs_per_transcript(dict_number_seqs)
 
 
@@ -141,19 +141,42 @@ def remove_duplicates(dict1, filename):
 def remove_duplicates2(dict1, filename):
     dict_270_nt_no_dupl = {}
     with open(filename, "w") as filevar:
-        filevar.write("Deleted Sequences\nGene Name | Transcript ID | Fragment #\n")
+        filevar.write("Deleted Sequences\nGene Name | Transcript ID | Fragment # | Replaced by Fragment \n") # add replaced by
         for key in dict1:
             if dict1[key] in dict_270_nt_no_dupl:
-                filevar.write(dict1[key] + "\n")
+                filevar.write(key + " | " + dict_270_nt_no_dupl[dict1[key]] + "\n" + dict1[key] + "\n")
             dict_270_nt_no_dupl[dict1[key]] = key
     print("Number of non-duplicates remove_duplicates2: " + str(len(dict_270_nt_no_dupl)))
     return dict_270_nt_no_dupl
 
 
-
 #remove keys from original dictionary
 no_dupl_dict = remove_duplicates(dict_270_nt, "deleted_transcripts.txt")
 no_dupl_dict2 = remove_duplicates2(dict_270_nt, "deleted_transcripts2.txt")
+
+count = 0
+for key in no_dupl_dict2:
+    if len(key) <= 15:
+        count = count + 1
+print("Number of fragments <= 15 nt " + count)
+
+'''
+#assertion test: fragments in no_dupl_dict = fragments in no_dupl_dict2 (they're just flipped so can't do a direct comparison). Keys are different though.
+assert set(no_dupl_dict.values()) == set(no_dupl_dict2.keys())
+#assertion test works - these have the same values
+'''
+
+
+'''
+Make a file that shows the number of fragments per transcript before duplicate
+removal and after (inputs: original dictionary, dictionary after removal);
+output: writing to file in CSV format
+'''
+
+def make_fragment_deleted_table(original_dict, removal_dict):
+    with open("deleted_transcripts_data.csv", "w") as filevar:
+        split_key = origina
+
 
 
 #Fasta format:
