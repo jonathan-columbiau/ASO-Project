@@ -5,8 +5,6 @@ import matplotlib.pyplot as plt
 #Put each sequence into a dictionary,with the key being the header in the FASTA
 #http://biopython.org/DIST/docs/tutorial/Tutorial.html#sec63
 
-utr_dict = SeqIO.to_dict(SeqIO.parse("All660UTRsWithTranscriptIDs.fasta", "fasta"))
-
 '''
 This block of code filters for 3' UTR sequences at least 15 nt and unavailable sequences
 del_items = [] #contain keys of sequences that will be deleted
@@ -22,7 +20,6 @@ def filter_unavailable(dict_seq):
         del filtered_dict[key]
     return filtered_dict
 
-utr_dict = filter_unavailable(utr_dict)
 
 #make a function that converts a dictionary with sequences in Biopython's SeqRecord format to string format. Input: dictionary w values in SeqRecord for,at.
 #output: dictionary with String values.
@@ -34,13 +31,9 @@ def seqdict_to_strdict(dict1):
         strdict[gene] = string_seq
     return strdict
 
-utr_dict = seqdict_to_strdict(utr_dict)
 
-#print(len(utr_dict))
-#print(type(list(utr_dict.keys())[0]))
-#format of key: NFKB2|ENST00000189444; type: str
+
 #plot_hist - plots summary statistics of sequence lengths of all transcripts (assuming dictionary values are sequences in string format). Second parameter is title of histogram
-
 def plot_hist(dict1):
     dict_hist = {}
     for transcript, utr in dict1.items():
@@ -57,7 +50,6 @@ def plot_hist(dict1):
     plt.ylabel("Frequency")
     plt.show()
 
-plot_hist(utr_dict)
 
 #return dictionary with keys being in the format:
 #Gene name | transcript id | 270 nt fragment number for this transcript id
@@ -86,24 +78,19 @@ def dict_with_270nt_seq(dict1):
                 num_lines = num_lines + 1
     return dict_270nt_seq, dict_number_seq
 
+#write sequences before removal to file - debugging function
 def write_seqs_before_dup_removal(dict1):
     with open("seqs_before_duplication_removal.fasta", "w") as filevar:
         for key in dict1:
             filevar.write(">" + key + "\n" + dict1[key] + "\n")
 
 
-dict_270_nt, dict_number_seqs = dict_with_270nt_seq(utr_dict)
-write_seqs_before_dup_removal(dict_270_nt)
 #write dict_number_seqs to a new file called seqs_per_transcript.txt. Can do analysis in Python, but easier in Excel. In Excel, just import this text file as CSV to open it.
 def write_seqs_per_transcript(dict1):
     with open("seqs_per_transcript.txt", "w") as filevar:
         filevar.write("Gene name | transcript id | # of sequences\n")
         for gene in dict1:
             filevar.write(gene + "|" + str(dict1[gene]) + "\n")
-write_seqs_per_transcript(dict_number_seqs)
-
-
-print("Number of total 270 nt transcripts: " + str(len(dict_270_nt))) #32561 transcripts/stuff currently in the dictionary
 
 
 
@@ -146,15 +133,7 @@ def remove_duplicates(dict1, filename):
     return dict_270_nt_no_dupl, dict_qc_test
 
 
-
-
-#output sequences should be FASTA file. Then can take fragments for a single gene, copy and paste 10 entries, do Blast. Try before and after removing duplicates.
-
-#create a dictionary where sequence is key, use id as the value. Then can loop through dictionary where utr is new key and header is new value, and output that as the final.
-#if key already exists, just
-#a lot of transcripts have identical protein coding sequence so same stop codon
-
-#alternative way to remove duplicates after meeting with Xuebing: remove_duplicates2
+#alternative way to remove duplicates: remove_duplicates2
 def remove_duplicates2(dict1, filename):
     dict_270_nt_no_dupl = {}
     with open(filename, "w") as filevar:
@@ -167,25 +146,14 @@ def remove_duplicates2(dict1, filename):
     return dict_270_nt_no_dupl
 
 
-#remove keys from original dictionary
-no_dupl_dict, qc_dict = remove_duplicates(dict_270_nt, "deleted_transcripts.txt")
-no_dupl_dict2 = remove_duplicates2(dict_270_nt, "deleted_transcripts2.txt")
-
-
-#assertion test: fragments in no_dupl_dict = fragments in no_dupl_dict2 (they're just flipped so can't do a direct comparison). Keys are different though.
-assert set(no_dupl_dict.values()) == set(no_dupl_dict2.keys())
-#assertion test works - these have the same values
-
-
 
 '''
 Make a file that shows the number of fragments per transcript before duplicate
 removal and after (inputs: original dictionary, dictionary after removal);
-output: writing to file in CSV format. Both dictionaries have the same keys if they both have the item.
+Output: writing to file in CSV format. Both dictionaries have the same keys if they both have the item.
 Format:
 Gene Id | Transcript ID | Number of fragments before | Number of fragments after
 '''
-
 def make_fragment_deleted_table(original_dict_nums, dict_after_removal_nums):
     #print("dict_after_removal_nums keys", list(dict_after_removal_nums.keys()))
     with open("deleted_transcripts_data.tsv", "w") as filevar:
@@ -196,7 +164,6 @@ def make_fragment_deleted_table(original_dict_nums, dict_after_removal_nums):
             else:
                 filevar.write("0")
             filevar.write("\n")
-make_fragment_deleted_table(dict_number_seqs, qc_dict)
 
 #filter 1: If 1 fragment is subset of another, then remove the smaller one.
 def filter_subsequence(dict1):
@@ -211,50 +178,62 @@ def filter_subsequence(dict1):
             new_dict[key] = dict1[key]
     print("Length of new dictionary: " + str(len(new_dict)))
     return new_dict
-#length of new dictionary: 16981
 
-subsequence_dict = filter_subsequence(no_dupl_dict)
-
-#filter 2: If 1 fragment is subset of another, then remove the smaller one.
-
-
+#count number of fragments smaller than a particular size
 def count_15(dict1):
-    count15 = 0
+    count200 = 0
     count10 = 0
     for x in dict1:
-        if len(dict1[x]) <= 15:
-            count15 = count15 +1
+        if len(dict1[x]) <= 200:
+            count200 = count200 +1
         if len(dict1[x]) <= 10:
             count10 = count10 +1
-    print("Number < 15:  ", count15, "\n")
+    print("Number < 200:  ", count200, "\n")
     print("Number < 10:  ", count10, "\n")
 
-count_15(subsequence_dict)
-#Fasta format:
+#Write Fragments to file in Fasta format:
 #header: >Gene name | transcript id | 270 nt fragment number for this id
 #sequence on next ine
-#There are gene paralogs with same gene id + gene name but different 3' UTR regions
 def write_270_nt(dict1):
     with open("270ntsequences.fasta", "w") as filevar:
         #filevar.write("Gene name | transcript id | 270 nt sequence number for this id | sequence\n")
         for gene in dict1:
             filevar.write(">" + gene + "\n" + dict1[gene] + "\n")
             #now handle this just like a string, and write to a file just like a string.
-write_270_nt(subsequence_dict)
 
-
+#for 3' UTR sequences initially smaller than 270 nt, add GFP to end of that sequence until
+#it reaches 270 nt. Return a new dictionary with all sequences initially larger than 270 nt, and those
+#that are smaller than 270 nt corrected to be 270 nt by appending GFP to the end.
+def add_GFP_to_270(dict1):
+    gfp = "ATGGTGAGCAAGGGCGCCGAGCTGTTCACCGGCATCGTGCCCATCCTGATCGAGCTGAATGGCGATGTGAATGGCCACAAGTTCAGCGTGAGCGGCGAGGGCGAGGGCGATGCCACCTACGGCAAGCTGACCCTGAAGTTCATCTGCACCACCGGCAAGCTGCCTGTGCCCTGGCCCACCCTGGTGACCACCCTGAGCTACGGCGTGCAGTGCTTCTCACGCTACCCCGATCACATGAAGCAGCACGACTTCTTCAAGAGCGCCATGCCT"
+    new_dict = {}
+    for seq in dict1:
+        if len(dict1[seq]) > 270:
+            new_dict[seq] = dict1[seq]
+        else:
+            len_utr = len(dict1[seq])
+            new_seq = dict1[seq] + gfp[:270-len_utr]
+            new_dict[seq] = new_seq
+    return new_dict
 
 def run_program():
-    utr_dict = SeqIO.to_dict(SeqIO.parse("All660UTRsWithTranscriptIDs.fasta", "fasta"))
+    utr_dict = SeqIO.to_dict(SeqIO.parse("Haploinsufficient636UTRs.fasta", "fasta"))
     utr_dict = filter_unavailable(utr_dict)
     utr_dict = seqdict_to_strdict(utr_dict)
-    plot_hist(utr_dict)
+    #plot_hist(utr_dict)
+    utr_dict = filter_subsequence(utr_dict) #new 11/9
+    utr_dict = add_GFP_to_270(utr_dict)
     dict_270_nt, dict_number_seqs = dict_with_270nt_seq(utr_dict)
     write_seqs_before_dup_removal(dict_270_nt)
+    write_seqs_per_transcript(dict_number_seqs)
     print("Number of total 270 nt transcripts: " + str(len(dict_270_nt))) #32561 transcripts/stuff currently in the dictionary
     no_dupl_dict, qc_dict = remove_duplicates(dict_270_nt, "deleted_transcripts.txt")
     no_dupl_dict2 = remove_duplicates2(dict_270_nt, "deleted_transcripts2.txt")
     #assertion test: fragments in no_dupl_dict = fragments in no_dupl_dict2 (they're just flipped so can't do a direct comparison). Keys are different though.
     assert set(no_dupl_dict.values()) == set(no_dupl_dict2.keys())
+    make_fragment_deleted_table(dict_number_seqs, qc_dict)
     subsequence_dict = filter_subsequence(no_dupl_dict)
+    count_15(subsequence_dict)
     write_270_nt(subsequence_dict)
+
+run_program()
