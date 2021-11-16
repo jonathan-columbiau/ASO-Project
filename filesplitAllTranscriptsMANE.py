@@ -88,6 +88,9 @@ def dict_with_270nt_seq(dict1):
             while count < len_seq:
                 key = gene_name + "|" + gene_transcript_id + "|" + str(num_lines)
                 value = string_seq[count:count+270]
+                #for fragments > 270 nts: last fragment = the last 270 nts
+                if count + 270 > len_seq and len_seq > 270:
+                    value = string_seq[len_seq-270:]
                 dict_270nt_seq[key] = value
                 count = count + 220
                 if count > len_seq:#summary statistics
@@ -212,8 +215,8 @@ def count_15(dict1):
 #Write Fragments to file in Fasta format:
 #header: >Gene name | transcript id | 270 nt fragment number for this id
 #sequence on next ine
-def write_270_nt(dict1):
-    with open("270ntsequences.fasta", "w") as filevar:
+def write_270_nt(dict1, filename):
+    with open(filename, "w") as filevar:
         #filevar.write("Gene name | transcript id | 270 nt sequence number for this id | sequence\n")
         for gene in dict1:
             filevar.write(">" + gene + "\n" + dict1[gene] + "\n")
@@ -234,7 +237,90 @@ def add_GFP_to_270(dict1):
             new_dict[seq] = new_seq
     return new_dict
 
+#returns a dictionary of MANE Refseq IDs to MANE Ensembl IDs
+def refseq_to_ensembl():
+    with open("EnsembltoRefSeq.txt", "r") as filevar:
+        dict1 = {}
+        for lin in filevar:
+            lin_split = lin.strip().split("\t")
+            dict1[lin_split[1]] = lin_split[0]
+    return dict1
+
+#given a file with a list of RefSeq IDs, and a dictionary with conversion, create a new file called
+#ENSEMBL IDs that returns the ENSEMBL ID
+def write_ensembl_from_refseq(dict1):
+    with open("Refseq.txt", "r") as filevar1:
+        list_refseq = filevar1.read().splitlines()
+    with open("Ensembl.txt","w") as filevar2:
+        for id in list_refseq:
+            ens_id = dict1[id]
+            filevar2.write(ens_id)
+            filevar2.write("\n")
+
+#function to filter out fragments that are extremely similar to each other
+#similar to filter_subsequence, but instead of filtering by subsequence, we filter out the
+#sequences that are the same, except for the first 0 - 20 nucleotides
+#input: dictionary; output: dictionary
+def filter_similar(dict1):
+    values_list = list(dict1.values())
+    new_dict = {}
+    for key in dict1:
+        add_or_not = True
+        for value in values_list:
+            if dict1[key] != value and dict1[key][19:] in value:
+                add_or_not = False
+        if add_or_not == True:
+            new_dict[key] = dict1[key]
+    print("Length of new dictionary: " + str(len(new_dict)))
+    return new_dict
+
+#manually add sequences to the original FASTA file with the 3' UTRs before everything
+def manually_add_sequences():
+    dict1 = {}
+    with open("manually_added.txt","r") as filevar:
+        lines = filevar.readlines()
+        for lin in lines:
+            lin_list = lin.split()
+            gene_name = lin_list[0]
+            ensembl_id = lin_list[1]
+            utr_seq = lin_list[2]
+            key = ">" + gene_name + "|" + ensembl_id
+            dict1[key] = utr_seq
+    #put in format: gene name|ENSEMBL ID
+                #   sequence
+    with open("UTRs of haploinsufficient genes MANE curated 641 out of 660.fasta", "a") as filevar2:
+        for key in dict1:
+            str_to_write = key + "\n" + dict1[key] + "\n"
+            filevar2.write(str_to_write)
+
+#function to take in FASTA with 270 nt fragments, and convert the CDS sequence they encode
+#with the reverse complement (which is what we want to synthesize)
+def cds_to_template():
+    new_dict = {}
+    utr_dict = SeqIO.to_dict(SeqIO.parse("270ntsequences.fasta", "fasta"))
+    for key in utr_dict:
+        cds = utr_dict[key]
+        rev_comp = cds.reverse_complement()
+        new_dict[key] = rev_comp
+    return new_dict
+
+#given two sequences, sequence to be appended at beginning and sequence to be
+#appended at end, add ends which include restriction site cut sites that will
+#be used to fragment the ends.
+def add_ends_to_template(dict1, begin_seq, end_seq):
+    for key in dict1:
+        new_seq = begin_seq + dict1[key] + end_seq
+        dict1[key] = new_seq
+    return dict1
+
+
 def run_program():
+    #never run this (manually_add_sequences) again with the same seqeuences unless you delete the added sequences in the UTR seqdict_to_strdict
+    #manually_add_sequences()
+
+    conversion_dict = refseq_to_ensembl()
+    write_ensembl_from_refseq(conversion_dict)
+    #write_ensembl_from_refseq(co
     utr_dict = SeqIO.to_dict(SeqIO.parse("UTRs of haploinsufficient genes MANE curated 641 out of 660.fasta", "fasta"))
     find_genes(utr_dict)
     utr_dict = filter_unavailable(utr_dict)
@@ -253,6 +339,13 @@ def run_program():
     make_fragment_deleted_table(dict_number_seqs, qc_dict)
     subsequence_dict = filter_subsequence(no_dupl_dict)
     count_15(subsequence_dict)
-    write_270_nt(subsequence_dict)
+    filter_similar_dict = filter_similar(subsequence_dict)
+    #filter_similar_dict only got rid of 63 sequences...
+    count_15(filter_similar_dict)
+    write_270_nt(filter_similar_dict, "270ntsequences.fasta")
+    template_dict = cds_to_template()
+    template_dict = seqdict_to_strdict(template_dict)
+    write_270_nt(template_dict, "270ntTemplate.fasta")
+
 
 run_program()
